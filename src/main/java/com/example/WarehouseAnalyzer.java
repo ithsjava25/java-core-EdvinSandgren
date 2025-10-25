@@ -1,11 +1,11 @@
 package com.example;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.example.Warehouse.*;
 
 /**
  * Analyzer class that provides advanced warehouse operations.
@@ -117,7 +117,7 @@ class WarehouseAnalyzer {
             double weightSum = 0.0;
             for (Product p : items) {
                 if (p instanceof Shippable s) {
-                    double w = Optional.ofNullable(s.weight()).orElse(0.0);
+                    double w = Optional.of(s.weight()).orElse(0.0);
                     if (w > 0) {
                         BigDecimal wBD = BigDecimal.valueOf(w);
                         weightedSum = weightedSum.add(p.price().multiply(wBD));
@@ -138,31 +138,34 @@ class WarehouseAnalyzer {
     }
     
     /**
-     * Identifies products whose price deviates from the mean by more than the specified
-     * number of standard deviations. Uses population standard deviation over all products.
+     * Identifies products whose price deviates from the interquartile range (IQR) by more than
+     * the specified deviation multiplier.
      * Test expectation: with a mostly tight cluster and two extremes, calling with 2.0 returns the two extremes.
      *
-     * @param standardDeviations threshold in standard deviations (e.g., 2.0)
+     * @param deviationMultiplier specifies how much greater or smaller than the IQR
+     *                           should be considered to be an outlier (e.g., 2.0)
      * @return list of products considered outliers
      */
-    public List<Product> findPriceOutliers(double standardDeviations) {
-        List<Product> products = warehouse.getProducts();
-        int n = products.size();
-        if (n == 0) return List.of();
-        double sum = products.stream().map(Product::price).mapToDouble(bd -> bd.doubleValue()).sum();
-        double mean = sum / n;
-        double variance = products.stream()
-                .map(Product::price)
-                .mapToDouble(bd -> Math.pow(bd.doubleValue() - mean, 2))
-                .sum() / n;
-        double std = Math.sqrt(variance);
-        double threshold = standardDeviations * std;
-        List<Product> outliers = new ArrayList<>();
-        for (Product p : products) {
-            double diff = Math.abs(p.price().doubleValue() - mean);
-            if (diff > threshold) outliers.add(p);
-        }
-        return outliers;
+    public List<Product> findPriceOutliers(double deviationMultiplier) {
+        List<Product> products = warehouse.getProducts().stream().sorted(Comparator.comparing(Product::price)).toList();
+
+        int size = products.size();
+
+//        double q2 = products.stream().mapToDouble(Product::getPrice).sorted()
+//                .skip((size-1)/2).limit(2-size%2).average().orElse(Double.NaN);
+
+        double q1 = products.stream().mapToDouble(Product::imprecisePrice)
+                .skip((size-1)/4).limit(2-size%2).average().orElse(Double.NaN);
+
+        double q3 = products.stream().mapToDouble(Product::imprecisePrice)
+                .skip(((size-1)/2)+((size-1)/4)).limit(2-size%2).average().orElse(Double.NaN);
+
+        double iqr = q3 - q1;
+
+        double lowerLimit = q1 - deviationMultiplier * iqr;
+        double upperLimit = q3 + deviationMultiplier * iqr;
+
+        return products.stream().filter(p -> p.imprecisePrice() < lowerLimit || p.imprecisePrice() > upperLimit).collect(Collectors.toList());
     }
     
     /**
@@ -178,10 +181,10 @@ class WarehouseAnalyzer {
         double maxW = maxWeightPerGroup.doubleValue();
         List<Shippable> items = warehouse.shippableProducts();
         // Sort by descending weight (First-Fit Decreasing)
-        items.sort((a, b) -> Double.compare(Objects.requireNonNullElse(b.weight(), 0.0), Objects.requireNonNullElse(a.weight(), 0.0)));
+        items.sort((a, b) -> Double.compare(b.weight(), a.weight()));
         List<List<Shippable>> bins = new ArrayList<>();
         for (Shippable item : items) {
-            double w = Objects.requireNonNullElse(item.weight(), 0.0);
+            double w = item.weight();
             boolean placed = false;
             for (List<Shippable> bin : bins) {
                 double binWeight = bin.stream().map(Shippable::weight).reduce(0.0, Double::sum);
@@ -245,7 +248,7 @@ class WarehouseAnalyzer {
      *    when percentage exceeds 70%.
      *  - Category diversity: count of distinct categories in the inventory. The tests expect at least 2.
      *  - Convenience booleans: highValueWarning (percentage > 70%) and minimumDiversity (category count >= 2).
-     *
+
      * Note: The exact high-value threshold is implementation-defined, but the provided tests create a clear
      * separation using very expensive electronics (e.g., 2000) vs. low-priced food items (e.g., 10),
      * allowing percentage computation regardless of the chosen cutoff as long as it matches the scenario.
