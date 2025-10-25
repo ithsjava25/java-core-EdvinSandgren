@@ -1,22 +1,24 @@
 package com.example;
 
 import java.util.HashMap;
+import java.util.Locale;
 
 public class Category {
     private static final HashMap<String, Category> categories = new HashMap<>();
     private final String name;
 
     private Category(String name) {
-        if (name == null)
-            throw new IllegalArgumentException("Category name can't be null");
-        else if (name.isBlank())
-            throw new IllegalArgumentException("Category name can't be blank");
-        else
-            this.name = name;
+        this.name = name;
     }
 
     public static Category of(String category) {
-        return categories.computeIfAbsent(category, Category::new);
+        if (category == null)
+            throw new IllegalArgumentException("Category name can't be null");
+        else if (category.isBlank())
+            throw new IllegalArgumentException("Category name can't be blank");
+
+        String lowerCase = category.toLowerCase(Locale.ROOT);
+        return categories.computeIfAbsent(lowerCase, Category::new);
     }
 
     public String getName() {

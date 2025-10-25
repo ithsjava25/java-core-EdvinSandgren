@@ -44,7 +44,7 @@ public class Warehouse {
     }
 
     public void addProduct(Product product) {
-        if (product != null){
+        if (product != null) {
             if (products.contains(product))
                 throw new IllegalArgumentException("Product with that id already exists, use updateProduct for updates.");
             else
@@ -54,9 +54,9 @@ public class Warehouse {
     }
 
     public void updateProductPrice(UUID productID, BigDecimal newPrice) {
-        if (products.stream().anyMatch(product -> product.uuid() == productID)) {
+        if (products.stream().anyMatch(product -> product.uuid().equals(productID))) {
             products.stream()
-                    .filter(product -> product.uuid() == productID)
+                    .filter(product -> product.uuid().equals(productID))
                     .forEach(product -> product.setPrice(newPrice));
         } else {
             throw new NoSuchElementException("Product not found with id: " + productID);
@@ -65,7 +65,7 @@ public class Warehouse {
     }
 
     public Optional<Product> getProductById(UUID uuid) {
-        return Optional.of(products.stream().filter(product -> product.uuid() == uuid)).get().findAny();
+        return products.stream().filter(product -> product.uuid().equals(uuid)).findAny();
     }
 
     public Map<Category, List<Product>> getProductsGroupedByCategories() {

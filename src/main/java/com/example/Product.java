@@ -12,12 +12,12 @@ public abstract class Product {
     private final BigDecimal weight;
 
     public Product(UUID productID, String name, Category category, BigDecimal price, BigDecimal weight) {
-        if (price.intValue() >= 0)
+        if (price.compareTo(BigDecimal.ZERO) > 0)
             this.price = price;
         else
             throw new IllegalArgumentException("Price cannot be negative.");
 
-        if (weight.intValue() >= 0)
+        if (weight.compareTo(BigDecimal.ZERO) > 0)
             this.weight = weight;
         else
             throw new IllegalArgumentException("Weight cannot be negative.");
@@ -35,10 +35,8 @@ public abstract class Product {
         return price;
     }
 
-    public double imprecisePrice() { return price.doubleValue(); }
-
     void setPrice(BigDecimal price) {
-        if (price.intValue() > 0)
+        if (price.compareTo(BigDecimal.ZERO) > 0)
             this.price = price;
         else
             throw new IllegalArgumentException("Price cannot be negative or zero.");
@@ -48,7 +46,9 @@ public abstract class Product {
         return name;
     }
 
-    public UUID uuid() { return productID; }
+    public UUID uuid() {
+        return productID;
+    }
 
     public Category category() {
         return category;
@@ -58,7 +58,9 @@ public abstract class Product {
         return toString();
     }
 
-    public double weight() { return weight.doubleValue(); }
+    public double weight() {
+        return weight.doubleValue();
+    }
 
     @Override
     public boolean equals(Object o) {
